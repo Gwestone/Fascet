@@ -1,10 +1,22 @@
 import { StatusBar } from 'expo-status-bar';
 // @ts-ignore
-import {StyleSheet, Text, View, ToastAndroid, Platform, AlertIOS, Image, PermissionsAndroid} from 'react-native';
+import {
+    StyleSheet,
+    Text,
+    View,
+    ToastAndroid,
+    Platform,
+    AlertIOS,
+    Image,
+    PermissionsAndroid,
+    ScrollView
+} from 'react-native';
 import React, {useState} from "react";
+import RNFetchBlob from 'rn-fetch-blob';
 
 import StyledButton from "./Components/StyledButton";
-import {launchCamera, launchImageLibrary} from "react-native-image-picker"
+import {launchImageLibrary} from "react-native-image-picker"
+import RNFS from "react-native-fs"
 
 export default function App() {
 
@@ -25,9 +37,11 @@ export default function App() {
     async function onDocumentSelect(){
         const result = await launchImageLibrary({
             mediaType: "photo",
-            selectionLimit: 1
+            selectionLimit: 1,
+            includeBase64: true
         });
         if (!result.didCancel && result.errorCode === undefined && result.errorMessage === undefined){
+            console.log(result)
             setFile({
                     path: result.assets![0].uri!,
                     aspectRatio: result.assets![0].width! / result.assets![0].height!
@@ -44,6 +58,36 @@ export default function App() {
         setFile(fileClone)
         forceUpdate()
     }
+
+    function getFileExt(path: string){
+        let splitArr = file!.path.split(".");
+        return  splitArr[splitArr.length - 1];
+    }
+
+    type MosaicAlgorithms = "Initial" | "SimulatedDecorativeMosaic" | "Jigsaw" | "Voronoi";
+    async function applyFilter(algorithm: MosaicAlgorithms){
+
+        let baseString = await RNFS.readFileAssets(file!.path, "base64")
+        console.log(baseString)
+        console.log(getFileExt(file!.path))
+
+        switch (algorithm){
+            case "Initial":
+                console.log("initial")
+                break
+            case "SimulatedDecorativeMosaic":
+                console.log("Decorative")
+                break
+            case "Jigsaw":
+                console.log("Jigsaw")
+                break
+            case "Voronoi":
+                console.log("Voronoi")
+                break
+        }
+    }
+
+    function pass(){}
 
   return (
       <View style={styles.fluid}>
@@ -72,7 +116,33 @@ export default function App() {
                               uri: file.path
                           }}
                       />
-                      {/*<StyledButton message={"Switch orientation"} onPress={onSwitchOrientation} />*/}
+                      <View style={styles.inlineButton}>
+                        <StyledButton message={"Load new"} onPress={onDocumentSelect} />
+                          <StyledButton message={"Save Image"} onPress={pass} />
+                      </View>
+                      <ScrollView style={styles.optionsList}>
+                          <View style={styles.optionButton}>
+                            <StyledButton message={"Initial"} onPress={()=>applyFilter("Initial")} />
+                          </View>
+                          <View style={styles.optionButton}>
+                            <StyledButton message={"Simulated decorative mosaic"} onPress={()=>applyFilter("SimulatedDecorativeMosaic")} />
+                          </View>
+                          <View style={styles.optionButton}>
+                            <StyledButton message={"JigSaw algorithm"} onPress={()=>applyFilter("Jigsaw")} />
+                          </View>
+                          <View style={styles.optionButton}>
+                              <StyledButton message={"Voronoi algorithm"} onPress={()=>applyFilter("Voronoi")} />
+                          </View>
+                          <View style={styles.optionButton}>
+                              <StyledButton message={"Photo"} onPress={pass} />
+                          </View>
+                          <View style={styles.optionButton}>
+                              <StyledButton message={"Photo"} onPress={pass} />
+                          </View>
+                          <View style={styles.optionButton}>
+                              <StyledButton message={"Photo"} onPress={pass} />
+                          </View>
+                      </ScrollView>
                   </View>
                   : <View style={styles.pass} />
           }
@@ -113,6 +183,18 @@ const styles = StyleSheet.create({
     },
     notDisplay: {
       display: "none"
+    },
+    optionsList: {
+      width: "90%",
+        maxHeight: "25%"
+    },
+    optionButton: {
+      marginTop: 10
+    },
+    inlineButton: {
+        flexDirection:'row',
+        flexWrap:'wrap',
+        gap: 10
     },
     pass: {}
 });
