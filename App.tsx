@@ -1,200 +1,206 @@
-import { StatusBar } from 'expo-status-bar';
+import { StatusBar } from "expo-status-bar";
 // @ts-ignore
 import {
-    StyleSheet,
-    Text,
-    View,
-    ToastAndroid,
-    Platform,
-    AlertIOS,
-    Image,
-    PermissionsAndroid,
-    ScrollView
-} from 'react-native';
-import React, {useState} from "react";
-import RNFetchBlob from 'rn-fetch-blob';
+  StyleSheet,
+  Text,
+  View,
+  ToastAndroid,
+  Platform,
+  Image,
+  PermissionsAndroid,
+  ScrollView,
+} from "react-native";
+import React, { useState } from "react";
 
-import StyledButton from "./Components/StyledButton";
-import {launchImageLibrary} from "react-native-image-picker"
-import RNFS from "react-native-fs"
+import StyledButton from "./components/StyledButton";
+import { File } from "./utils/getFileExt";
+import { MosaicAlgorithms } from "./utils/MosaicAlgoritms";
+import Spinner from "react-native-loading-spinner-overlay";
+import { launchImageLibraryAsync, MediaTypeOptions } from "expo-image-picker";
 
 export default function App() {
+  const [loadedFile, setLoadedFile] = useState<File>();
+  const [processedFile, setProcessedFile] = useState<File>();
+  const [loading, setLoading] = useState<boolean>(false);
 
-    const [, updateState] = React.useState<{}>();
-    const forceUpdate = React.useCallback(() => updateState({}), []);
-    type File = {path: string, aspectRatio: number}
-    const [file, setFile] = useState<File | undefined>(undefined);
-
-    function showMessage(message: string){
-        if (Platform.OS === "android"){
-            ToastAndroid.show(
-                message, 2000)
-        }else{
-            AlertIOS.alert(message);
-        }
-    }
-
-    async function onDocumentSelect(){
-        const result = await launchImageLibrary({
-            mediaType: "photo",
-            selectionLimit: 1,
-            includeBase64: true
+  async function onDocumentSelect() {
+    setLoading(true);
+    await launchImageLibraryAsync({
+      mediaTypes: MediaTypeOptions.Images,
+      selectionLimit: 1,
+      base64: true,
+    })
+      .then((result) => {
+        setLoadedFile({
+          path: result.assets![0].uri!,
+          aspectRatio: result.assets![0].width! / result.assets![0].height!,
+          base64: result.assets?.[0].base64!,
         });
-        if (!result.didCancel && result.errorCode === undefined && result.errorMessage === undefined){
-            console.log(result)
-            setFile({
-                    path: result.assets![0].uri!,
-                    aspectRatio: result.assets![0].width! / result.assets![0].height!
-                }
-            )
-        }else if (result.errorMessage !== undefined){
-            showMessage(`Error: ${result.errorMessage}`)
-        }
+        setProcessedFile({
+          path: result.assets![0].uri!,
+          aspectRatio: result.assets![0].width! / result.assets![0].height!,
+          base64: result.assets?.[0].base64!,
+        });
+      })
+      .catch((error) => {
+        console.log(error);
+      });
+    setLoading(false);
+  }
+  async function applyFilter(algorithm: MosaicAlgorithms) {
+    switch (algorithm) {
+      case "Initial":
+        setProcessedFile({
+          path: loadedFile!.path,
+          aspectRatio: loadedFile!.aspectRatio,
+          base64: loadedFile!.base64,
+        });
+        break;
+      case "Voronoi":
+        setLoading(true);
+
+        const baseUrl = "http://192.168.1.103:5000";
+        const response = await fetch(baseUrl + "/mosaics/voronoi", {
+          body: JSON.stringify({
+            base64_image: loadedFile?.base64,
+          }),
+          headers: {
+            "Content-Type": "application/json",
+          },
+          method: "POST",
+        });
+
+        const data = await response.text();
+        setProcessedFile({
+          path: "",
+          aspectRatio: 1920 / 1080,
+          base64: data,
+        });
+
+        setLoading(false);
+        break;
     }
-
-    function onSwitchOrientation(){
-        let fileClone = file;
-        fileClone!.aspectRatio = 1 / fileClone!.aspectRatio;
-        setFile(fileClone)
-        forceUpdate()
-    }
-
-    function getFileExt(path: string){
-        let splitArr = file!.path.split(".");
-        return  splitArr[splitArr.length - 1];
-    }
-
-    type MosaicAlgorithms = "Initial" | "SimulatedDecorativeMosaic" | "Jigsaw" | "Voronoi";
-    async function applyFilter(algorithm: MosaicAlgorithms){
-
-        let baseString = await RNFS.readFileAssets(file!.path, "base64")
-        console.log(baseString)
-        console.log(getFileExt(file!.path))
-
-        switch (algorithm){
-            case "Initial":
-                console.log("initial")
-                break
-            case "SimulatedDecorativeMosaic":
-                console.log("Decorative")
-                break
-            case "Jigsaw":
-                console.log("Jigsaw")
-                break
-            case "Voronoi":
-                console.log("Voronoi")
-                break
-        }
-    }
-
-    function pass(){}
+  }
 
   return (
-      <View style={styles.fluid}>
-          {/*first screen start*/}
-          {
-              file === undefined ?
-                  <View style={styles.container}>
-                      <Text style={styles.title}>Welcome.</Text>
-                      <Text style={styles.title}>Find and select file from directory to start working with app!</Text>
-                      <StyledButton message={"Open file."} onPress={onDocumentSelect} />
-                      <StatusBar style="auto" />
-                  </View>
-                  : <View style={styles.pass} />
-          }
-          {/*first screen end*/}
-          {/*second screen start*/}
-          {
-              file !== undefined ?
-                  <View style={styles.container}>
-                      <Image
-                          style={{
-                              width: '90%',
-                              aspectRatio: file.aspectRatio
-                          }}
-                          source={{
-                              uri: file.path
-                          }}
-                      />
-                      <View style={styles.inlineButton}>
-                        <StyledButton message={"Load new"} onPress={onDocumentSelect} />
-                          <StyledButton message={"Save Image"} onPress={pass} />
-                      </View>
-                      <ScrollView style={styles.optionsList}>
-                          <View style={styles.optionButton}>
-                            <StyledButton message={"Initial"} onPress={()=>applyFilter("Initial")} />
-                          </View>
-                          <View style={styles.optionButton}>
-                            <StyledButton message={"Simulated decorative mosaic"} onPress={()=>applyFilter("SimulatedDecorativeMosaic")} />
-                          </View>
-                          <View style={styles.optionButton}>
-                            <StyledButton message={"JigSaw algorithm"} onPress={()=>applyFilter("Jigsaw")} />
-                          </View>
-                          <View style={styles.optionButton}>
-                              <StyledButton message={"Voronoi algorithm"} onPress={()=>applyFilter("Voronoi")} />
-                          </View>
-                          <View style={styles.optionButton}>
-                              <StyledButton message={"Photo"} onPress={pass} />
-                          </View>
-                          <View style={styles.optionButton}>
-                              <StyledButton message={"Photo"} onPress={pass} />
-                          </View>
-                          <View style={styles.optionButton}>
-                              <StyledButton message={"Photo"} onPress={pass} />
-                          </View>
-                      </ScrollView>
-                  </View>
-                  : <View style={styles.pass} />
-          }
-          {/*second screen end*/}
-      </View>
+    <View style={styles.fluid}>
+      <Spinner
+        //visibility of Overlay Loading Spinner
+        visible={loading}
+        //Text with the Spinner
+        textContent={"Loading..."}
+        //Text style of the Spinner Text
+        textStyle={styles.spinnerTextStyle}
+      />
+      {/*first screen start*/}
+      {loadedFile === undefined ? (
+        <View style={styles.container}>
+          <Text style={styles.title}>Welcome.</Text>
+          <Text style={styles.title}>
+            Find and select file from directory to start working with app!
+          </Text>
+          <StyledButton message={"Open file."} onPress={onDocumentSelect} />
+          <StatusBar style="auto" />
+        </View>
+      ) : (
+        <View style={styles.pass} />
+      )}
+      {/*first screen end*/}
+      {/*second screen start*/}
+      {loadedFile !== undefined ? (
+        <View style={styles.container}>
+          <Image
+            style={{
+              width: "90%",
+              aspectRatio: processedFile?.aspectRatio,
+            }}
+            source={{
+              uri: `data:image/jpeg;base64,${processedFile?.base64}`,
+            }}
+          />
+          <View style={styles.inlineButton}>
+            <StyledButton message={"Load new"} onPress={onDocumentSelect} />
+            <StyledButton message={"Save Image"} />
+          </View>
+          <ScrollView style={styles.optionsList}>
+            <View style={styles.optionButton}>
+              <StyledButton
+                message={"Initial"}
+                onPress={() => applyFilter("Initial")}
+              />
+            </View>
+            <View style={styles.optionButton}>
+              <StyledButton
+                message={"Voronoi"}
+                onPress={() => applyFilter("Voronoi")}
+              />
+            </View>
+            <View style={styles.optionButton}>
+              <StyledButton message={"Placeholder"} />
+            </View>
+            <View style={styles.optionButton}>
+              <StyledButton message={"Placeholder"} />
+            </View>
+            <View style={styles.optionButton}>
+              <StyledButton message={"Placeholder"} />
+            </View>
+          </ScrollView>
+        </View>
+      ) : (
+        <View style={styles.pass} />
+      )}
+      {/*second screen end*/}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  spinnerTextStyle: {
+    color: "#002366",
+  },
   container: {
     flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-      gap: 15
+    backgroundColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 15,
   },
-    fluid: {
-      width: '100%',
-        height: '100%'
-    },
-    title: {
-      fontSize: 25,
-        textAlign: "center",
-        paddingLeft: 10,
-        paddingRight: 10,
-        fontFamily: "Roboto"
-    },
-    findTextButton: {
-        fontSize: 20,
-        fontFamily: "Roboto",
-        color: "#fff"
-    },
-    findButton: {
-      borderRadius: 9999,
-        backgroundColor: '#037ffc',
-        padding: 20,
-        paddingVertical: 10
-    },
-    notDisplay: {
-      display: "none"
-    },
-    optionsList: {
-      width: "90%",
-        maxHeight: "25%"
-    },
-    optionButton: {
-      marginTop: 10
-    },
-    inlineButton: {
-        flexDirection:'row',
-        flexWrap:'wrap',
-        gap: 10
-    },
-    pass: {}
+  fluid: {
+    width: "100%",
+    height: "100%",
+  },
+  title: {
+    fontSize: 25,
+    textAlign: "center",
+    paddingLeft: 10,
+    paddingRight: 10,
+    fontFamily: "Roboto",
+  },
+  findTextButton: {
+    fontSize: 20,
+    fontFamily: "Roboto",
+    color: "#fff",
+  },
+  findButton: {
+    borderRadius: 9999,
+    backgroundColor: "#037ffc",
+    padding: 20,
+    paddingVertical: 10,
+  },
+  notDisplay: {
+    display: "none",
+  },
+  optionsList: {
+    width: "90%",
+    maxHeight: "25%",
+  },
+  optionButton: {
+    marginTop: 10,
+  },
+  inlineButton: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  pass: {},
 });

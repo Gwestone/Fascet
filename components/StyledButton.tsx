@@ -3,11 +3,14 @@ import React from "react";
 
 interface styledButtonProps{
     message: string,
-    onPress(): void
+    onPress?(): void
 }
 export default function StyledButton({message, onPress}: styledButtonProps){
     return (
-        <Pressable style={styles.findButton} onPress={onPress}>
+        <Pressable style={styles.findButton} onPress={()=>{
+            if (onPress !== undefined) {
+                onPress();
+            }}}>
             <Text style={styles.findTextButton}>{message}</Text>
         </Pressable>
     )
