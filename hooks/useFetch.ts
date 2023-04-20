@@ -1,26 +1,51 @@
+import { useState, useEffect } from "react";
 import { MosaicAlgorithms } from "../utils/MosaicAlgoritms";
-import { useEffect, useState } from "react";
 
-export function useFetch(imageString: string, algorithm: MosaicAlgorithms) {
-  const baseUrl = "http://192.168.1.103:5000";
-  const [imageData, setImageData] = useState<string>();
-  const [error, setError] = useState<unknown>();
+export default function useFetch(
+  _base64Data: string,
+  _algorithm: MosaicAlgorithms
+) {
+  const [responseData, setResponseData] = useState<string>();
+  const [isLoading, setLoading] = useState(false);
+
+  const [base64Data, setData] = useState<string>(_base64Data);
+  const [algorithm, setAlgorithm] = useState<string>(_algorithm);
+
+  const updateInputData = (
+    algorithm: MosaicAlgorithms,
+    base64String: string
+  ) => {
+    setData(base64String);
+    setAlgorithm(algorithm);
+  };
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await fetch(baseUrl + "/mosaics/voronoi", {
-          body: JSON.stringify({
-            base64: imageString,
-          }),
-        });
-        const data = await response.json();
-        setImageData(data);
-      } catch (error: unknown) {
-        setError(error);
+    async function fetchData() {
+      setLoading(true);
+      if (algorithm == "Initial") {
+        setResponseData(base64Data);
+      } else {
+        const response = await fetch(
+          "http://192.168.1.103:5000/mosaics/" + algorithm.toLowerCase(),
+          {
+            body: JSON.stringify({
+              base64_image: base64Data,
+            }),
+            headers: {
+              "Content-Type": "application/json",
+            },
+            method: "POST",
+          }
+        );
+
+        const responseData = await response.text();
+        setResponseData(responseData);
+        setLoading(false);
       }
-    };
+      setLoading(false);
+    }
     fetchData();
-  }, [imageString]);
-  return { imageData, error };
+  }, [algorithm, base64Data]);
+
+  return { responseData, isLoading, updateInputData };
 }

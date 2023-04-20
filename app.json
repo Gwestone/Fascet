@@ -43,9 +43,6 @@
       "permissions": [
         "READ_EXTERNAL_STORAGE"
       ]
-    },
-    "web": {
-      "favicon": "./assets/favicon.png"
     }
   }
 }

@@ -10,7 +10,7 @@ import {
   PermissionsAndroid,
   ScrollView,
 } from "react-native";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 
 import StyledButton from "./components/StyledButton";
 import { File } from "./utils/getFileExt";
@@ -19,11 +19,28 @@ import Spinner from "react-native-loading-spinner-overlay";
 import { launchImageLibraryAsync, MediaTypeOptions } from "expo-image-picker";
 import saveImage from "./utils/saveImage";
 import { requestMediaLibraryPermission } from "./utils/requestPermissions";
+import useFetch from "./hooks/useFetch";
 
 export default function App() {
   const [loadedFile, setLoadedFile] = useState<File>();
   const [processedFile, setProcessedFile] = useState<File>();
   const [loading, setLoading] = useState<boolean>(false);
+  const { responseData, isLoading, updateInputData } = useFetch(
+    loadedFile?.base64!,
+    "Initial"
+  );
+
+  useEffect(() => {
+    setLoading(isLoading);
+  }, [isLoading]);
+
+  useEffect(() => {
+    setProcessedFile({
+      path: "",
+      aspectRatio: 1920 / 1080,
+      base64: responseData,
+    });
+  }, [responseData]);
 
   async function onDocumentSelect() {
     setLoading(true);
@@ -49,7 +66,6 @@ export default function App() {
       });
     setLoading(false);
   }
-
   async function onSaveImage() {
     setLoading(true);
     const mediaPermission = await requestMediaLibraryPermission();
@@ -59,38 +75,7 @@ export default function App() {
     setLoading(false);
   }
   async function applyFilter(algorithm: MosaicAlgorithms) {
-    switch (algorithm) {
-      case "Initial":
-        setProcessedFile({
-          path: loadedFile!.path,
-          aspectRatio: loadedFile!.aspectRatio,
-          base64: loadedFile!.base64,
-        });
-        break;
-      case "Voronoi":
-        setLoading(true);
-
-        const baseUrl = "http://192.168.1.103:5000";
-        const response = await fetch(baseUrl + "/mosaics/voronoi", {
-          body: JSON.stringify({
-            base64_image: loadedFile?.base64,
-          }),
-          headers: {
-            "Content-Type": "application/json",
-          },
-          method: "POST",
-        });
-
-        const data = await response.text();
-        setProcessedFile({
-          path: "",
-          aspectRatio: 1920 / 1080,
-          base64: data,
-        });
-
-        setLoading(false);
-        break;
-    }
+    updateInputData(algorithm, loadedFile?.base64!);
   }
 
   return (
@@ -203,7 +188,7 @@ const styles = StyleSheet.create({
   },
   optionsList: {
     width: "90%",
-    maxHeight: "25%",
+    maxHeight: "35%",
   },
   optionButton: {
     marginTop: 10,
