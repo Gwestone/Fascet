@@ -17,6 +17,8 @@ import { File } from "./utils/getFileExt";
 import { MosaicAlgorithms } from "./utils/MosaicAlgoritms";
 import Spinner from "react-native-loading-spinner-overlay";
 import { launchImageLibraryAsync, MediaTypeOptions } from "expo-image-picker";
+import saveImage from "./utils/saveImage";
+import { requestMediaLibraryPermission } from "./utils/requestPermissions";
 
 export default function App() {
   const [loadedFile, setLoadedFile] = useState<File>();
@@ -45,6 +47,15 @@ export default function App() {
       .catch((error) => {
         console.log(error);
       });
+    setLoading(false);
+  }
+
+  async function onSaveImage() {
+    setLoading(true);
+    const mediaPermission = await requestMediaLibraryPermission();
+    if (mediaPermission) {
+      await saveImage(processedFile?.base64!);
+    }
     setLoading(false);
   }
   async function applyFilter(algorithm: MosaicAlgorithms) {
@@ -120,7 +131,7 @@ export default function App() {
           />
           <View style={styles.inlineButton}>
             <StyledButton message={"Load new"} onPress={onDocumentSelect} />
-            <StyledButton message={"Save Image"} />
+            <StyledButton message={"Save Image"} onPress={onSaveImage} />
           </View>
           <ScrollView style={styles.optionsList}>
             <View style={styles.optionButton}>
