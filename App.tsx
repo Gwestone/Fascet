@@ -9,10 +9,11 @@ import {
   Image,
   PermissionsAndroid,
   ScrollView,
+  SafeAreaView,
 } from "react-native";
 import React, { useEffect, useState } from "react";
 
-import StyledButton from "./components/StyledButton";
+import CustomButton from "./components/CustomButton";
 import { File } from "./utils/getFileExt";
 import { MosaicAlgorithms } from "./utils/MosaicAlgoritms";
 import Spinner from "react-native-loading-spinner-overlay";
@@ -20,6 +21,7 @@ import { launchImageLibraryAsync, MediaTypeOptions } from "expo-image-picker";
 import saveImage from "./utils/saveImage";
 import { requestMediaLibraryPermission } from "./utils/requestPermissions";
 import useFetch from "./hooks/useFetch";
+import Greetings from "./components/Greetings";
 
 export default function App() {
   const [loadedFile, setLoadedFile] = useState<File>();
@@ -79,7 +81,7 @@ export default function App() {
   }
 
   return (
-    <View style={styles.fluid}>
+    <SafeAreaView style={styles.fluid}>
       <Spinner
         //visibility of Overlay Loading Spinner
         visible={loading}
@@ -89,21 +91,14 @@ export default function App() {
         textStyle={styles.spinnerTextStyle}
       />
       {/*first screen start*/}
-      {loadedFile === undefined ? (
-        <View style={styles.container}>
-          <Text style={styles.title}>Welcome.</Text>
-          <Text style={styles.title}>
-            Find and select file from directory to start working with app!
-          </Text>
-          <StyledButton message={"Open file."} onPress={onDocumentSelect} />
-          <StatusBar style="auto" />
-        </View>
+      {!loadedFile ? (
+        <Greetings onDocumentSelect={onDocumentSelect} />
       ) : (
         <View style={styles.pass} />
       )}
       {/*first screen end*/}
       {/*second screen start*/}
-      {loadedFile !== undefined ? (
+      {loadedFile ? (
         <View style={styles.container}>
           <Image
             style={{
@@ -115,30 +110,27 @@ export default function App() {
             }}
           />
           <View style={styles.inlineButton}>
-            <StyledButton message={"Load new"} onPress={onDocumentSelect} />
-            <StyledButton message={"Save Image"} onPress={onSaveImage} />
+            <CustomButton message={"Load new"} onPress={onDocumentSelect} />
+            <CustomButton message={"Save Image"} onPress={onSaveImage} />
           </View>
           <ScrollView style={styles.optionsList}>
             <View style={styles.optionButton}>
-              <StyledButton
+              <CustomButton
                 message={"Initial"}
                 onPress={() => applyFilter("Initial")}
               />
             </View>
             <View style={styles.optionButton}>
-              <StyledButton
+              <CustomButton
                 message={"Voronoi"}
                 onPress={() => applyFilter("Voronoi")}
               />
             </View>
             <View style={styles.optionButton}>
-              <StyledButton message={"Placeholder"} />
-            </View>
-            <View style={styles.optionButton}>
-              <StyledButton message={"Placeholder"} />
-            </View>
-            <View style={styles.optionButton}>
-              <StyledButton message={"Placeholder"} />
+              <CustomButton
+                message={"Puzzle"}
+                onPress={() => applyFilter("Puzzle")}
+              />
             </View>
           </ScrollView>
         </View>
@@ -146,7 +138,7 @@ export default function App() {
         <View style={styles.pass} />
       )}
       {/*second screen end*/}
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -160,6 +152,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 15,
+    paddingTop: 20,
   },
   fluid: {
     width: "100%",
@@ -188,7 +181,6 @@ const styles = StyleSheet.create({
   },
   optionsList: {
     width: "90%",
-    maxHeight: "35%",
   },
   optionButton: {
     marginTop: 10,
