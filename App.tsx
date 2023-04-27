@@ -10,6 +10,8 @@ import {
   PermissionsAndroid,
   ScrollView,
   SafeAreaView,
+  Button,
+  TextInput,
 } from "react-native";
 import React, { useEffect, useState } from "react";
 
@@ -31,6 +33,12 @@ export default function App() {
     loadedFile?.base64!,
     "Initial"
   );
+  const [loggedIn, setLoggedIn] = useState();
+  const [nowLogin, setNowLogin] = useState(true);
+  const [loggingIn, setLoggingIn] = useState(false);
+
+  const [username, setUsername] = useState<string>();
+  const [password, setPassword] = useState<string>();
 
   useEffect(() => {
     setLoading(isLoading);
@@ -80,6 +88,30 @@ export default function App() {
     updateInputData(algorithm, loadedFile?.base64!);
   }
 
+  async function submitLogin() {
+    setLoading(true);
+
+    let formData = new FormData();
+    formData.append("username", username!);
+    formData.append("password", password!);
+
+    const response = await fetch(
+      "http://192.168.1.103:5000/auth/" + (nowLogin ? "login" : "register"),
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+        body: formData,
+        method: "POST",
+      }
+    );
+
+    const responseData = await response.text();
+    console.log(responseData);
+
+    setLoading(false);
+  }
+
   return (
     <SafeAreaView style={styles.fluid}>
       <Spinner
@@ -90,15 +122,59 @@ export default function App() {
         //Text style of the Spinner Text
         textStyle={styles.spinnerTextStyle}
       />
+      <View style={styles.topBar}>
+        <CustomButton
+          message={"login/register"}
+          onPress={() => setLoggingIn(!loggingIn)}
+        />
+      </View>
+
+      {loggingIn ? (
+        <View style={styles.container}>
+          <Text style={styles.title}>
+            Now {nowLogin ? "Logging" : "Registering"}
+          </Text>
+          <CustomButton
+            message={"witch to " + (nowLogin ? "register" : "login")}
+            onPress={() => {
+              setNowLogin(!nowLogin);
+            }}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Email"
+            keyboardType="email-address"
+            onChangeText={(e) => {
+              setUsername(e);
+            }}
+            value={username}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Password"
+            secureTextEntry={true}
+            onChangeText={(e) => {
+              setPassword(e);
+            }}
+            value={password}
+          />
+          <CustomButton
+            message={nowLogin ? "Log in" : "Register"}
+            onPress={submitLogin}
+          />
+        </View>
+      ) : (
+        <View style={styles.pass} />
+      )}
       {/*first screen start*/}
-      {!loadedFile ? (
+      {!loadedFile && !loggingIn ? (
         <Greetings onDocumentSelect={onDocumentSelect} />
       ) : (
         <View style={styles.pass} />
       )}
       {/*first screen end*/}
       {/*second screen start*/}
-      {loadedFile ? (
+      {loadedFile && !loggingIn ? (
         <View style={styles.container}>
           <Image
             style={{
@@ -137,6 +213,7 @@ export default function App() {
       ) : (
         <View style={styles.pass} />
       )}
+
       {/*second screen end*/}
     </SafeAreaView>
   );
@@ -189,6 +266,28 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 10,
+  },
+  topBar: {
+    height: 90,
+    width: "100%",
+    backgroundColor: "#037ffc",
+    display: "flex",
+    justifyContent: "flex-end",
+    flexDirection: "row",
+    paddingTop: "5%",
+  },
+  topElement: {
+    height: "100%",
+    backgroundColor: "yellow",
+    margin: 20,
+  },
+  input: {
+    height: 40,
+    width: "80%",
+    borderColor: "gray",
+    borderWidth: 1,
+    marginTop: 20,
+    paddingLeft: 10,
   },
   pass: {},
 });
