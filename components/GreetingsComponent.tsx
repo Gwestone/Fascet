@@ -6,7 +6,9 @@ import { StatusBar } from "expo-status-bar";
 interface greetingsProps {
   onDocumentSelect(): void;
 }
-export default function Greetings({ onDocumentSelect }: greetingsProps) {
+export default function GreetingsComponent({
+  onDocumentSelect,
+}: greetingsProps) {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Welcome.</Text>

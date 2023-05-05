@@ -23,7 +23,10 @@ import { launchImageLibraryAsync, MediaTypeOptions } from "expo-image-picker";
 import saveImage from "./utils/saveImage";
 import { requestMediaLibraryPermission } from "./utils/requestPermissions";
 import useFetch from "./hooks/useFetch";
-import Greetings from "./components/Greetings";
+import GreetingsComponent from "./components/GreetingsComponent";
+import AuthComponent from "./components/AuthComponent";
+
+let imagesStorage: string[] = [];
 
 export default function App() {
   const [loadedFile, setLoadedFile] = useState<File>();
@@ -33,16 +36,17 @@ export default function App() {
     loadedFile?.base64!,
     "Initial"
   );
-  const [loggedIn, setLoggedIn] = useState();
-  const [nowLogin, setNowLogin] = useState(true);
   const [loggingIn, setLoggingIn] = useState(false);
-
-  const [username, setUsername] = useState<string>();
-  const [password, setPassword] = useState<string>();
+  const [sessionId, setSessionId] = useState<number>(0);
+  const [username, setUsername] = useState<string>("");
 
   useEffect(() => {
     setLoading(isLoading);
   }, [isLoading]);
+
+  useEffect(() => {
+    if (sessionId !== 0) setLoggingIn(false);
+  }, [sessionId]);
 
   useEffect(() => {
     setProcessedFile({
@@ -88,28 +92,25 @@ export default function App() {
     updateInputData(algorithm, loadedFile?.base64!);
   }
 
-  async function submitLogin() {
-    setLoading(true);
+  async function uploadImageToServer() {
+    if (sessionId !== 0) {
+      setLoading(true);
 
-    let formData = new FormData();
-    formData.append("username", username!);
-    formData.append("password", password!);
-
-    const response = await fetch(
-      "http://192.168.1.103:5000/auth/" + (nowLogin ? "login" : "register"),
-      {
+      const response = await fetch("http://192.168.1.103:5000/storage/save", {
+        body: JSON.stringify({
+          base64_image: processedFile?.base64,
+          sessionId: sessionId,
+        }),
         headers: {
-          "Content-Type": "multipart/form-data",
+          "Content-Type": "application/json",
         },
-        body: formData,
         method: "POST",
-      }
-    );
+      });
+      const responseData = await response.text();
+      console.log(responseData);
 
-    const responseData = await response.text();
-    console.log(responseData);
-
-    setLoading(false);
+      setLoading(false);
+    }
   }
 
   return (
@@ -122,57 +123,47 @@ export default function App() {
         //Text style of the Spinner Text
         textStyle={styles.spinnerTextStyle}
       />
-      <View style={styles.topBar}>
-        <CustomButton
-          message={"login/register"}
-          onPress={() => setLoggingIn(!loggingIn)}
-        />
-      </View>
 
+      {/*start rendering status bar*/}
+      <View style={styles.topBar}>
+        {loggingIn ? (
+          <CustomButton message={"←"} onPress={() => setLoggingIn(false)} />
+        ) : (
+          <View style={styles.pass} />
+        )}
+        {!sessionId ? (
+          <CustomButton
+            message={"login/register"}
+            onPress={() => setLoggingIn(!loggingIn)}
+          />
+        ) : loadedFile ? (
+          <CustomButton message={username} />
+        ) : (
+          <View style={styles.pass} />
+        )}
+      </View>
+      {/*end rendering status bar*/}
+
+      {/*start rendering auth*/}
       {loggingIn ? (
-        <View style={styles.container}>
-          <Text style={styles.title}>
-            Now {nowLogin ? "Logging" : "Registering"}
-          </Text>
-          <CustomButton
-            message={"witch to " + (nowLogin ? "register" : "login")}
-            onPress={() => {
-              setNowLogin(!nowLogin);
-            }}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Email"
-            keyboardType="email-address"
-            onChangeText={(e) => {
-              setUsername(e);
-            }}
-            value={username}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            secureTextEntry={true}
-            onChangeText={(e) => {
-              setPassword(e);
-            }}
-            value={password}
-          />
-          <CustomButton
-            message={nowLogin ? "Log in" : "Register"}
-            onPress={submitLogin}
-          />
-        </View>
+        <AuthComponent
+          setLoading={setLoading}
+          setSessionId={setSessionId}
+          setUsername={setUsername}
+        />
       ) : (
         <View style={styles.pass} />
       )}
+      {/*end rendering auth*/}
+
       {/*first screen start*/}
       {!loadedFile && !loggingIn ? (
-        <Greetings onDocumentSelect={onDocumentSelect} />
+        <GreetingsComponent onDocumentSelect={onDocumentSelect} />
       ) : (
         <View style={styles.pass} />
       )}
       {/*first screen end*/}
+
       {/*second screen start*/}
       {loadedFile && !loggingIn ? (
         <View style={styles.container}>
@@ -188,6 +179,11 @@ export default function App() {
           <View style={styles.inlineButton}>
             <CustomButton message={"Load new"} onPress={onDocumentSelect} />
             <CustomButton message={"Save Image"} onPress={onSaveImage} />
+            <CustomButton message={"Load from server"} />
+            <CustomButton
+              message={"Save on server"}
+              onPress={uploadImageToServer}
+            />
           </View>
           <ScrollView style={styles.optionsList}>
             <View style={styles.optionButton}>
@@ -266,13 +262,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 10,
+    justifyContent: "center",
   },
   topBar: {
     height: 90,
     width: "100%",
     backgroundColor: "#037ffc",
     display: "flex",
-    justifyContent: "flex-end",
+    justifyContent: "space-between",
     flexDirection: "row",
     paddingTop: "5%",
   },
@@ -280,14 +277,6 @@ const styles = StyleSheet.create({
     height: "100%",
     backgroundColor: "yellow",
     margin: 20,
-  },
-  input: {
-    height: 40,
-    width: "80%",
-    borderColor: "gray",
-    borderWidth: 1,
-    marginTop: 20,
-    paddingLeft: 10,
   },
   pass: {},
 });
