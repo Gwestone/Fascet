@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import CustomButton from "./CustomButton";
 import { StatusBar } from "expo-status-bar";
 
-interface greetingsProps {
+interface authProps {
   setLoading(loading: boolean): void;
   setSessionId(id: number): void;
   setUsername(username: string): void;
@@ -13,7 +13,7 @@ export default function AuthComponent({
   setLoading,
   setSessionId,
   setUsername: propSetUsername,
-}: greetingsProps) {
+}: authProps) {
   const [username, setUsername] = useState<string>();
   const [password, setPassword] = useState<string>();
 

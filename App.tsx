@@ -25,6 +25,7 @@ import { requestMediaLibraryPermission } from "./utils/requestPermissions";
 import useFetch from "./hooks/useFetch";
 import GreetingsComponent from "./components/GreetingsComponent";
 import AuthComponent from "./components/AuthComponent";
+import LoadServerComponent from "./components/LoadServerComponent";
 
 let imagesStorage: string[] = [];
 
@@ -37,6 +38,7 @@ export default function App() {
     "Initial"
   );
   const [loggingIn, setLoggingIn] = useState(false);
+  const [loadingImages, setLoadingImages] = useState(false);
   const [sessionId, setSessionId] = useState<number>(0);
   const [username, setUsername] = useState<string>("");
 
@@ -131,6 +133,13 @@ export default function App() {
         ) : (
           <View style={styles.pass} />
         )}
+
+        {loadingImages ? (
+          <CustomButton message={"←"} onPress={() => setLoadingImages(false)} />
+        ) : (
+          <View style={styles.pass} />
+        )}
+
         {!sessionId ? (
           <CustomButton
             message={"login/register"}
@@ -165,7 +174,7 @@ export default function App() {
       {/*first screen end*/}
 
       {/*second screen start*/}
-      {loadedFile && !loggingIn ? (
+      {loadedFile && !loggingIn && !loadingImages ? (
         <View style={styles.container}>
           <Image
             style={{
@@ -179,7 +188,10 @@ export default function App() {
           <View style={styles.inlineButton}>
             <CustomButton message={"Load new"} onPress={onDocumentSelect} />
             <CustomButton message={"Save Image"} onPress={onSaveImage} />
-            <CustomButton message={"Load from server"} />
+            <CustomButton
+              message={"Load from server"}
+              onPress={() => setLoadingImages(true)}
+            />
             <CustomButton
               message={"Save on server"}
               onPress={uploadImageToServer}
@@ -209,8 +221,23 @@ export default function App() {
       ) : (
         <View style={styles.pass} />
       )}
-
       {/*second screen end*/}
+      {loadingImages ? (
+        <Text>
+          <LoadServerComponent
+            sessionId={sessionId}
+            onPress={(base64_image: string) => {
+              setProcessedFile({
+                path: "",
+                aspectRatio: 1920 / 1080,
+                base64: base64_image,
+              });
+            }}
+          />
+        </Text>
+      ) : (
+        <View style={styles.pass} />
+      )}
     </SafeAreaView>
   );
 }
@@ -278,5 +305,7 @@ const styles = StyleSheet.create({
     backgroundColor: "yellow",
     margin: 20,
   },
-  pass: {},
+  pass: {
+    display: "none",
+  },
 });
