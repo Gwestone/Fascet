@@ -26,6 +26,9 @@ import useFetch from "./hooks/useFetch";
 import GreetingsComponent from "./components/GreetingsComponent";
 import AuthComponent from "./components/AuthComponent";
 import LoadServerComponent from "./components/LoadServerComponent";
+import { PicturePuzzle, PuzzlePieces } from "react-native-picture-puzzle";
+import * as url from "url";
+import SlidableComponent from "./components/SlidableComponent";
 
 let imagesStorage: string[] = [];
 
@@ -41,6 +44,29 @@ export default function App() {
   const [loadingImages, setLoadingImages] = useState(false);
   const [sessionId, setSessionId] = useState<number>(0);
   const [username, setUsername] = useState<string>("");
+
+  //react native puzzle
+  const [hidden, setHidden] = React.useState<number | null>(0); // piece to obscure
+  const [pieces, setPieces] = React.useState<PuzzlePieces>([
+    0, 1, 2, 3, 4, 5, 6, 7, 8,
+  ]);
+  const [usePuzzle, setUsePuzzle] = useState(false);
+  const [transition, setTransition] = useState(false);
+
+  useEffect(() => {
+    setTransition(false);
+    setTimeout(() => {
+      setTransition(true);
+    }, 100);
+  }, [loggingIn, loadedFile]);
+
+  const onChange = React.useCallback(
+    (nextPieces: PuzzlePieces, nextHidden: number | null): void => {
+      setPieces(nextPieces);
+      setHidden(nextHidden);
+    },
+    [setPieces, setHidden, loadingImages]
+  );
 
   useEffect(() => {
     setLoading(isLoading);
@@ -91,7 +117,12 @@ export default function App() {
     setLoading(false);
   }
   async function applyFilter(algorithm: MosaicAlgorithms) {
-    updateInputData(algorithm, loadedFile?.base64!);
+    if (algorithm != "Puzzle") {
+      setUsePuzzle(false);
+      updateInputData(algorithm, loadedFile?.base64!);
+    } else {
+      setUsePuzzle(!usePuzzle);
+    }
   }
 
   async function uploadImageToServer() {
@@ -155,11 +186,13 @@ export default function App() {
 
       {/*start rendering auth*/}
       {loggingIn ? (
-        <AuthComponent
-          setLoading={setLoading}
-          setSessionId={setSessionId}
-          setUsername={setUsername}
-        />
+        <SlidableComponent pressedLeft={transition} pressedRight={!transition}>
+          <AuthComponent
+            setLoading={setLoading}
+            setSessionId={setSessionId}
+            setUsername={setUsername}
+          />
+        </SlidableComponent>
       ) : (
         <View style={styles.pass} />
       )}
@@ -167,7 +200,9 @@ export default function App() {
 
       {/*first screen start*/}
       {!loadedFile && !loggingIn ? (
-        <GreetingsComponent onDocumentSelect={onDocumentSelect} />
+        <SlidableComponent pressedLeft={transition} pressedRight={!transition}>
+          <GreetingsComponent onDocumentSelect={onDocumentSelect} />
+        </SlidableComponent>
       ) : (
         <View style={styles.pass} />
       )}
@@ -175,66 +210,82 @@ export default function App() {
 
       {/*second screen start*/}
       {loadedFile && !loggingIn && !loadingImages ? (
-        <View style={styles.container}>
-          <Image
-            style={{
-              width: "90%",
-              aspectRatio: processedFile?.aspectRatio,
-            }}
-            source={{
-              uri: `data:image/jpeg;base64,${processedFile?.base64}`,
-            }}
-          />
-          <View style={styles.inlineButton}>
-            <CustomButton message={"Load new"} onPress={onDocumentSelect} />
-            <CustomButton message={"Save Image"} onPress={onSaveImage} />
-            <CustomButton
-              message={"Load from server"}
-              onPress={() => setLoadingImages(true)}
-            />
-            <CustomButton
-              message={"Save on server"}
-              onPress={uploadImageToServer}
-            />
+        <SlidableComponent pressedLeft={transition} pressedRight={!transition}>
+          <View style={styles.container}>
+            {usePuzzle ? (
+              <PicturePuzzle
+                size={300}
+                pieces={pieces}
+                hidden={hidden}
+                onChange={onChange}
+                source={{
+                  uri: `data:image/jpeg;base64,${processedFile?.base64}`,
+                }}
+              />
+            ) : (
+              <Image
+                style={{
+                  width: "90%",
+                  aspectRatio: processedFile?.aspectRatio,
+                }}
+                source={{
+                  uri: `data:image/jpeg;base64,${processedFile?.base64}`,
+                }}
+              />
+            )}
+            <View style={styles.inlineButton}>
+              <CustomButton message={"Load new"} onPress={onDocumentSelect} />
+              <CustomButton message={"Save Image"} onPress={onSaveImage} />
+              <CustomButton
+                message={"Load from server"}
+                onPress={() => setLoadingImages(true)}
+              />
+              <CustomButton
+                message={"Save on server"}
+                onPress={uploadImageToServer}
+              />
+            </View>
+            <ScrollView style={styles.optionsList}>
+              <View style={styles.optionButton}>
+                <CustomButton
+                  message={"Initial"}
+                  onPress={() => applyFilter("Initial")}
+                />
+              </View>
+              <View style={styles.optionButton}>
+                <CustomButton
+                  message={"Voronoi"}
+                  onPress={() => applyFilter("Voronoi")}
+                />
+              </View>
+              <View style={styles.optionButton}>
+                <CustomButton
+                  message={"Puzzle"}
+                  onPress={() => applyFilter("Puzzle")}
+                />
+              </View>
+            </ScrollView>
           </View>
-          <ScrollView style={styles.optionsList}>
-            <View style={styles.optionButton}>
-              <CustomButton
-                message={"Initial"}
-                onPress={() => applyFilter("Initial")}
-              />
-            </View>
-            <View style={styles.optionButton}>
-              <CustomButton
-                message={"Voronoi"}
-                onPress={() => applyFilter("Voronoi")}
-              />
-            </View>
-            <View style={styles.optionButton}>
-              <CustomButton
-                message={"Puzzle"}
-                onPress={() => applyFilter("Puzzle")}
-              />
-            </View>
-          </ScrollView>
-        </View>
+        </SlidableComponent>
       ) : (
         <View style={styles.pass} />
       )}
       {/*second screen end*/}
       {loadingImages ? (
-        <Text>
-          <LoadServerComponent
-            sessionId={sessionId}
-            onPress={(base64_image: string) => {
-              setProcessedFile({
-                path: "",
-                aspectRatio: 1920 / 1080,
-                base64: base64_image,
-              });
-            }}
-          />
-        </Text>
+        <SlidableComponent pressedLeft={transition} pressedRight={!transition}>
+          <Text>
+            <LoadServerComponent
+              sessionId={sessionId}
+              onPress={(base64_image: string) => {
+                setProcessedFile({
+                  path: "",
+                  aspectRatio: 1920 / 1080,
+                  base64: base64_image,
+                });
+              }}
+            />
+          </Text>
+        </SlidableComponent>
       ) : (
         <View style={styles.pass} />
       )}
